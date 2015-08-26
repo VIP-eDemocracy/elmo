@@ -6,14 +6,14 @@ FactoryGirl.define do
 
     user
     mission { get_mission }
-    form { build(:form, :mission => mission) }
+    form { create(:form, :mission => mission) }
+    source 'web'
 
     # Build answer objects from answer_values array
     # Array may contain nils, which should result in answers with nil values.
     answers do
       answer_values.each_with_index.map do |value, idx|
         qing = form.questionings[idx]
-
         case qing.qtype_name
         when 'select_one'
           options_by_name = qing.all_options.index_by(&:name)

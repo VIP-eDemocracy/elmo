@@ -24,6 +24,12 @@ class Report::Calculation < ActiveRecord::Base
     alias_method_chain :new, :cast
   end
 
+  # Called when related Question is destroyed.
+  def question_destroyed
+    delete # Calculation makes no sense now. We use delete b/c we handle callbacks manually.
+    report.calculation_destroyed(source: :question) # Report needs to know.
+  end
+
   def as_json(options = {})
     Hash[*%w(id type attrib1_name question1_id rank).collect{|k| [k, self.send(k)]}.flatten]
   end
@@ -58,7 +64,11 @@ class Report::Calculation < ActiveRecord::Base
   end
 
   def header_title
-    attrib1 ? attrib1.name.to_s.gsub("_", " ").ucwords : (report.question_labels == "title" ? question1.name_en : question1.code)
+    attrib1 ? attrib1.title : question_label
+  end
+
+  def question_label
+    report.question_labels == "title" ? question1.name : question1.code
   end
 
   def table_prefix

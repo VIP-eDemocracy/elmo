@@ -68,13 +68,15 @@ class WelcomeController < ApplicationController
         @responses_by_form = Response.per_form(accessible_responses, STAT_ROWS)
 
         # responses per user
-        @responses_per_user = User.sorted_response_counts(current_mission, STAT_ROWS)
+        @responses_per_user = User.sorted_observer_response_counts(current_mission, STAT_ROWS)
       end
+
+      # get list of all reports for the mission, for the dropdown
+      @reports = Report::Report.accessible_by(current_ability).by_name
 
       unless fragment_exist?(@cache_key + '/report_pane')
         prepare_report
       end
-
     end
 
     # render without layout if ajax request
@@ -94,7 +96,7 @@ class WelcomeController < ApplicationController
     prepare_report
     render(:json => {
       :title => render_to_string(:partial => 'report_pane_title'),
-      :main => render_to_string(:partial => 'report/reports/main')
+      :main => render_to_string(:partial => 'reports/main')
     })
   end
 
@@ -103,9 +105,6 @@ class WelcomeController < ApplicationController
 
   private
     def prepare_report
-      # get list of all reports for the mission, for the dropdown
-      @reports = Report::Report.accessible_by(current_ability).by_name
-
       unless @report.nil?
         authorize!(:view, @report)
         run_and_handle_errors

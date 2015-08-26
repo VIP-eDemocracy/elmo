@@ -82,17 +82,6 @@ module ApplicationHelper
     options[:tags] ? options_for_select(arr) : arr
   end
 
-  # finds the english name of the language with the given code (e.g. 'French' for 'fr')
-  # tries to use the translated locale name if it exists, otherwise use english language name from the iso639 gem
-  # returns code itself if code not found
-  def language_name(code)
-    if configatron.full_locales.include?(code)
-      t(:locale_name, :locale => code)
-    else
-      (entry = ISO_639.find(code.to_s)) ? entry.english_name : code.to_s
-    end
-  end
-
   # wraps the given content in a js tag and a jquery ready handler
   def javascript_doc_ready(&block)
     content = capture(&block)
@@ -112,6 +101,11 @@ module ApplicationHelper
   # translates a boolean value
   def tbool(b)
     t(b ? "common._yes" : "common._no")
+  end
+
+  # test if given obj is paginable
+  def paginable?(obj)
+    obj.respond_to?(:total_pages)
   end
 
   # if the given array is not paginated, apply an infinite pagination so the will_paginate methods will still work
@@ -224,7 +218,7 @@ module ApplicationHelper
     l = []
     klasses.each do |k|
       if can?(:index, k)
-        path = send("#{k.model_name.route_key}_path")
+        path = dynamic_path(k, action: :index)
         active = current_page?(path)
         l << content_tag(:li, :class => active ? 'active' : '') do
           link_to(icon_tag(k.model_name.param_key) + pluralize_model(k), path)
@@ -232,15 +226,5 @@ module ApplicationHelper
       end
     end
     l.join.html_safe
-  end
-
-  # Tries to get a path for the given object, returns nil if object doesn't have route
-  # Preserves the search param in the current query string, if any, unless there was a search error.
-  def path_for_with_search(obj)
-    begin
-      polymorphic_path(obj, @search_error ? {} : {search: params[:search]})
-    rescue
-      nil
-    end
   end
 end

@@ -15,18 +15,6 @@ describe OptionNode do
     end
   end
 
-  describe 'updating without hash' do
-    before do
-      @node = create(:option_node_with_grandchildren)
-      @other_option = create(:option)
-      @node.c[0].update_attributes!(option: @other_option)
-    end
-
-    it 'should not destroy children' do
-      expect(@node.c[0].children.size).to eq 2
-    end
-  end
-
   describe 'option_level' do
     before do
       @node = create(:option_node_with_grandchildren)
@@ -127,7 +115,7 @@ describe OptionNode do
     end
   end
 
-  describe 'updating from hash with changes' do
+  describe 'updating from hash with full set of changes' do
     before do
       @node = create(:option_node_with_grandchildren)
       @node.update_attributes!(standard_changeset(@node))
@@ -146,6 +134,31 @@ describe OptionNode do
     end
 
     it 'should cause options_removed? to be true' do
+      expect(@node.options_removed?).to eq true
+    end
+  end
+
+  describe 'updating from hash, moving two options to a different node' do
+    before do
+      @node = create(:option_node_with_grandchildren)
+      @node.update_attributes!(move_node_changeset(@node))
+    end
+
+    it 'should be correct' do
+      expect_node(['Animal', ['Plant', ['Tulip', 'Oak', 'Cat', 'Dog']]])
+    end
+
+    it 'should cause ranks_changed? to be false' do
+      expect(@node.ranks_changed?).to eq false
+    end
+
+    it 'should cause options_added? to be true' do
+      # Because moving an option is really adding and removing.
+      expect(@node.options_added?).to eq true
+    end
+
+    it 'should cause options_removed? to be true' do
+      # Because moving an option is really adding and removing.
       expect(@node.options_removed?).to eq true
     end
   end
@@ -235,6 +248,42 @@ describe OptionNode do
       node = create(:option_node_with_great_grandchildren)
       expect(node.options_for_node([]).map(&:name)).to eq %w(Animal Plant)
       expect(node.options_for_node([node.c[1].option_id]).map(&:name)).to eq %w(Tree Flower)
+    end
+  end
+
+  describe 'option_path_to_rank_path' do
+    before do
+      @node = create(:option_node_with_grandchildren)
+    end
+
+    it 'should be correct for partial path' do
+      expect(@node.option_path_to_rank_path([@node.c[0].option])).to eq [1]
+    end
+
+    it 'should be correct for full path' do
+      expect(@node.option_path_to_rank_path([@node.c[1].option, @node.c[1].c[0].option])).to eq [2,1]
+    end
+
+    it 'should raise error for invalid path' do
+      expect{@node.option_path_to_rank_path([create(:option)])}.to raise_error(ArgumentError)
+    end
+  end
+
+  describe 'rank_path_to_option_path' do
+    before do
+      @node = create(:option_node_with_grandchildren)
+    end
+
+    it 'should be correct for partial path' do
+      expect(@node.rank_path_to_option_path([2])).to eq [@node.c[1].option]
+    end
+
+    it 'should be correct for full path' do
+      expect(@node.rank_path_to_option_path([2,1])).to eq [@node.c[1].option, @node.c[1].c[0].option]
+    end
+
+    it 'should raise error for invalid path' do
+      expect{@node.rank_path_to_option_path([1,4])}.to raise_error(ArgumentError)
     end
   end
 end

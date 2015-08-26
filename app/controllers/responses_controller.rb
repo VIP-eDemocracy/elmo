@@ -10,6 +10,9 @@ class ResponsesController < ApplicationController
   before_filter :mark_response_as_checked_out, :only => [:edit]
 
   def index
+    # Disable cache, including back button
+    response.headers['Cache-Control'] = 'no-cache, max-age=0, must-revalidate, no-store'
+
     # handle different formats
     respond_to do |format|
       # html is the normal index page
@@ -79,7 +82,7 @@ class ResponsesController < ApplicationController
   def new
     # get the form specified in the params and error if it's not there
     begin
-      @response.form = Form.with_questionings.find(params[:form_id])
+      @response.form = Form.find(params[:form_id])
     rescue ActiveRecord::RecordNotFound
       return redirect_to(index_url_with_page_num)
     end

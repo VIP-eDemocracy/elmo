@@ -1,8 +1,8 @@
 <% if current_mission %>
 
   <% content_for(:per_page_js) do
-   # load the mapping API
-   javascript_include_tag("https://maps.googleapis.com/maps/api/js?sensor=false") +
+   # load the mapping API # TODO revert this back to v3 when bugfix is rolled out.
+   javascript_include_tag("https://maps.googleapis.com/maps/api/js?v=3.19&sensor=false") +
 
    # load report stuff
    report_js_includes
@@ -117,12 +117,9 @@
 
     </div>
 
-    <% cache(@cache_key + '/report_pane') do %>
-      <div class="report_pane">
-        <%= render('welcome/report_pane') %>
-      </div>
-    <% end %>
-
+    <div class="report_pane">
+      <%= render('welcome/report_pane') %>
+    </div>
   </div>
 
   <% #Hides/displays appropriate full screen elements if necessary %>
@@ -133,10 +130,10 @@
   <div class="dashboard-footer">
     <%# These links are for testing purposes %>
     <% if Rails.env.test? %>
-      <a href='#' class='reload-ajax'>Reload via AJAX</a>
-      <a href='#' class='reload-page'>Reload Page</a>
+      <a href="#" class="reload-ajax">Reload via AJAX</a>
+      <a href="#" class="reload-page">Reload Page</a>
     <% end %>
-    <a href='#' class='full-screen'><i class='fa fa-expand'></i> <%= I18n.t('dashboard.enter_full_screen') %></a>
+    <a href="#" class="full-screen"><i class="fa fa-expand"></i> <span><%= I18n.t('dashboard.enter_full_screen') %></span></a>
   </div>
 
 <% elsif admin_mode? %>

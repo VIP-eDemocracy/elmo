@@ -5,8 +5,10 @@
   <%# header links %>
   <% unless options[:table_only] %>
     <div class="header link_set">
-      <%= page_entries_info(objects, :model => klass) %>.
-      &nbsp;
+      <% if paginable?(objects) %>
+        <%= page_entries_info(objects, :model => klass) %>.
+        &nbsp;
+      <% end %>
       <%= links %>
     </div>
   <% end %>
@@ -51,7 +53,7 @@
             <% end %>
             <% fields.each do |f| %>
               <td class="<%= "#{(f.is_a?(Hash) ? f[:css_class] : f).gsub(/[^\w\d]/, "")}_col" %>">
-                <div><%= self.send("format_#{klass.model_name.route_key}_field", o, f) %></div>
+                <div><%== self.send("format_#{klass.model_name.route_key}_field", o, f) %></div>
               </td>
             <% end %>
 

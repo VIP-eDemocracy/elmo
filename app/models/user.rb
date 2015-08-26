@@ -2,7 +2,8 @@ class User < ActiveRecord::Base
   include Cacheable
 
   ROLES = %w[observer staffer coordinator]
-  SESSION_TIMEOUT = 60.minutes
+  SESSION_TIMEOUT = (Rails.env.development? ? 2.weeks : 60.minutes)
+  ELMO = new name: "ELMO" # Dummy user for use in SMS log
 
   attr_writer(:reset_password_method)
 
@@ -18,6 +19,7 @@ class User < ActiveRecord::Base
 
   acts_as_authentic do |c|
     c.disable_perishable_token_maintenance = true
+    c.perishable_token_valid_for = 1.week
     c.logged_in_timeout(SESSION_TIMEOUT)
     c.validates_format_of_login_field_options = {:with => /[\a-zA-Z0-9\.]+/}
 
@@ -115,22 +117,27 @@ class User < ActiveRecord::Base
   end
 
 
-  # returns an array of hashes of format {:name => "Some User", :count => 2}
-  # of user response counts for the given mission
-  def self.sorted_response_counts(mission, limit)
+  # Returns an array of hashes of format {:name => "Some User", :count => 2}
+  # of observer response counts for the given mission
+  def self.sorted_observer_response_counts(mission, limit)
     find_by_sql(["SELECT users.name AS name, COUNT(DISTINCT responses.id) AS response_count
       FROM users
         INNER JOIN assignments ON users.id = assignments.user_id AND assignments.mission_id = ?
         LEFT JOIN responses ON responses.user_id = users.id AND responses.mission_id = ?
+      WHERE assignments.role = 'observer'
       GROUP BY users.id, users.name
       ORDER BY response_count
-      LIMIT ?", mission.id, mission.id, limit])
+      LIMIT ?", mission.id, mission.id, limit]).reverse
   end
 
   # generates a cache key for the set of all users for the given mission.
   # the key will change if the number of users changes, or if a user is updated.
   def self.per_mission_cache_key(mission)
     count_and_date_cache_key(:rel => unscoped.assigned_to(mission), :prefix => "mission-#{mission.id}")
+  end
+
+  def self.by_phone(phone)
+    where("phone = ? OR phone2 = ?", phone, phone).first
   end
 
   def reset_password

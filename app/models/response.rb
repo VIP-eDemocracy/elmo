@@ -7,12 +7,12 @@ class Response < ActiveRecord::Base
 
   belongs_to(:form, :inverse_of => :responses, :counter_cache => true)
   belongs_to(:checked_out_by, :class_name => "User")
-  has_many(:answers, :include => :questioning, :order => "questionings.rank, answers.rank",
+  has_many(:answers, :include => :questioning, :order => 'form_items.rank, answers.rank',
     :autosave => true, :dependent => :destroy, :inverse_of => :response)
   belongs_to(:user, :inverse_of => :responses)
 
   has_many(:location_answers, :include => {:questioning => :question}, :class_name => 'Answer',
-    :conditions => "questions.qtype_name = 'location'", :order => 'questionings.rank')
+    :conditions => "questions.qtype_name = 'location'", :order => 'form_items.rank')
 
   attr_accessor(:modifier, :excerpts)
 
@@ -146,12 +146,13 @@ class Response < ActiveRecord::Base
       answer_ids = Answer.search_for_ids(*sphinx_params)
 
       # turn into an sql fragment
-      if answer_ids.empty?
-        "0"
-      else
+      fragment = if answer_ids.present?
         # get all response IDs and join into string
         Answer.connection.execute("SELECT DISTINCT response_id FROM answers WHERE answers.id IN (#{answer_ids.join(',')})").to_a.flatten.join(',')
       end
+
+      # fall back to '0' if we get an empty fragment
+      fragment.presence || '0'
     end
 
     # apply the conditions
@@ -347,7 +348,7 @@ class Response < ActiveRecord::Base
       rel = rel.select("forms.name AS form_name")
 
       rel = rel.select("questions.code AS question_code")
-      rel = rel.select("questions._name AS question_name")
+      rel = rel.select("questions.canonical_name AS question_name")
       rel = rel.select("questions.qtype_name AS question_type")
 
       rel = rel.select("users.name AS submitter_name")
@@ -356,7 +357,7 @@ class Response < ActiveRecord::Base
       rel = rel.select("answers.datetime_value AS answer_datetime_value")
       rel = rel.select("answers.date_value AS answer_date_value")
       rel = rel.select("answers.time_value AS answer_time_value")
-      rel = rel.select("IFNULL(ao._name, co._name) AS choice_name")
+      rel = rel.select("IFNULL(ao.canonical_name, co.canonical_name) AS choice_name")
       rel = rel.select("option_sets.name AS option_set")
 
       # add all the joins
@@ -393,9 +394,9 @@ class Response < ActiveRecord::Base
           answer = Answer.new(questioning: qing, rank: subq.rank)
           answer.populate_from_string(hash[subq.odk_code])
           self.answers << answer
-          self.incomplete = true if answer.required_but_empty?
         end
       end
+      self.incomplete = (hash[OdkHelper::IR_QUESTION] == 'yes')
     end
 
     def answer_set_for_questioning(questioning)

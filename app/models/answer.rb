@@ -40,17 +40,18 @@ class Answer < ActiveRecord::Base
       "SELECT r.id AS r_id, a.value AS loc
       FROM answers a
         INNER JOIN responses r ON a.response_id = r.id
-        INNER JOIN questionings qing ON a.questioning_id = qing.id
+        INNER JOIN form_items qing ON a.questioning_id = qing.id
         INNER JOIN questions q ON qing.question_id = q.id
       WHERE q.qtype_name = 'location' AND a.value IS NOT NULL AND r.mission_id = ? #{user_clause}",
       mission.id
     ])
   end
 
-  # Tests if there exists at least one answer referencing the Option with the given ID.
-  def self.any_for_option?(option_id)
+  # Tests if there exists at least one answer referencing the option and questionings with the given IDs.
+  def self.any_for_option_and_questionings?(option_id, questioning_ids)
     connection.execute("SELECT COUNT(*) FROM answers a LEFT OUTER JOIN choices c ON c.answer_id = a.id
-      WHERE a.option_id = '#{option_id}' OR c.option_id = '#{option_id}'").to_a[0][0] > 0
+      WHERE (a.option_id = '#{option_id}' OR c.option_id = '#{option_id}')
+      AND a.questioning_id IN (#{questioning_ids.join(',')})").to_a[0][0] > 0
   end
 
   # Populates answer from odk-like string value.
@@ -58,10 +59,11 @@ class Answer < ActiveRecord::Base
     return if str.nil?
 
     if qtype.name == "select_one"
-      self.option_id = str.to_i
+      # 'none' will be returned for a blank choice for a multilevel set.
+      self.option_id = option_id_for_submission(str) unless str == 'none'
 
     elsif qtype.name == "select_multiple"
-      str.split(' ').each{ |oid| choices.build(option_id: oid.to_i) }
+      str.split(' ').each{ |oid| choices.build(option_id: option_id_for_submission(oid)) }
 
     elsif qtype.temporal?
       # Strip timezone info for datetime and time.
@@ -162,6 +164,8 @@ class Answer < ActiveRecord::Base
     when :required
       # don't validate requiredness if response says no
       !(response && response.incomplete?)
+    when :min_max
+      value.present?
     else
       true
     end
@@ -200,6 +204,17 @@ class Answer < ActiveRecord::Base
         else
           self.value = ""
         end
+      end
+    end
+
+    # finds the appropriate Option instance for an ODK submission
+    def option_id_for_submission(id_or_str)
+      if id_or_str =~ /\Aon(\d+)\z/
+        # look up inputs of the form "on####" as option node ids
+        OptionNode.id_to_option_id($1)
+      else
+        # look up other inputs as option ids
+        Option.where(id: id_or_str).pluck(:id).first
       end
     end
 end

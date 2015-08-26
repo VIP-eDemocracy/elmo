@@ -44,17 +44,16 @@ ELMO::Application.routes.draw do
       end
     end
     resources :responses
+    resources :sms, :only => [:index]
     resources :sms_tests, :path => 'sms-tests'
 
-    namespace :report do
-      resources :reports
+    resources :reports
 
-      # need to list these all separately b/c rails is dumb sometimes
-      resources :question_answer_tally_reports, :controller => 'reports'
-      resources :grouped_tally_reports, :controller => 'reports'
-      resources :list_reports, :controller => 'reports'
-      resources :standard_form_reports, :controller => 'reports'
-    end
+    # need to list these all separately b/c rails is dumb sometimes
+    resources :answer_tally_reports, :controller => 'reports'
+    resources :response_tally_reports, :controller => 'reports'
+    resources :list_reports, :controller => 'reports'
+    resources :standard_form_reports, :controller => 'reports'
 
     # special dashboard routes
     match '/info-window' => 'welcome#info_window', :as => :dashboard_info_window
@@ -82,7 +81,11 @@ ELMO::Application.routes.draw do
     end
     resources :markers
     resources :questions
-    resources :questionings
+    resources :questionings do
+      collection do
+        get 'condition_form', :path => 'condition-form'
+      end
+    end
     resources :settings
     resources :user_batches, :path => 'user-batches'
     resources :groups
@@ -99,8 +102,9 @@ ELMO::Application.routes.draw do
       post "/#{k.gsub('_', '-')}/import-standard" => "#{k}#import_standard", :as => "import_standard_#{k}"
     end
 
-    # special route for option suggestions
+    # special routes for tokeninput suggestions
     get '/options/suggest' => 'options#suggest', :as => :suggest_options
+    get '/tags/suggest' => 'tags#suggest', :as => :suggest_tags
   end
 
   #####################################
@@ -117,16 +121,18 @@ ELMO::Application.routes.draw do
 
   # Special SMS and ODK routes. No locale.
   scope '/m/:mission_name', :mission_name => /[a-z][a-z0-9]*/, :defaults => {:mode => 'm'} do
-    resources :sms, :only => [:index, :create]
+    resources :sms, :only => [:create]
     get '/sms/submit' => 'sms#create'
 
     # ODK routes. They are down here so that forms_path doesn't return the ODK variant.
-    get '/formList' => 'forms#index', :format => 'xml'
-    get '/forms/:id' => 'forms#show', :format => 'xml', :as => :form_with_mission
-    match '/submission' => 'responses#create', :format => 'xml'
+    get '/formList' => 'forms#index', :format => 'xml', :as => :odk_form_list, :direct_auth => true
+    get '/forms/:id' => 'forms#show', :format => 'xml', :as => :odk_form, :direct_auth => true
+    get '/forms/:id/manifest' => 'forms#odk_manifest', :format => 'xml', :direct_auth => true, :as => :odk_form_manifest
+    get '/forms/:id/itemsets' => 'forms#odk_itemsets', :format => 'csv', :direct_auth => true, :as => :odk_form_itemsets
+    match '/submission' => 'responses#create', :direct_auth => true, :format => 'xml'
 
     # Unauthenticated submissions
-    match '/noauth/submission' => 'responses#create', :format => :xml, :noauth => true
+    match '/noauth/submission' => 'responses#create', :format => :xml, :no_auth => true
   end
 
   # API routes.

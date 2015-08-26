@@ -56,7 +56,7 @@ gem 'descriptive_statistics', :require => 'descriptive_statistics/safe'
 gem 'ejs'
 
 # search
-gem 'thinking-sphinx', '~> 3.0.2'
+gem 'thinking-sphinx', '~> 3.0'
 
 # cron management
 gem 'whenever', :require => false
@@ -71,6 +71,12 @@ gem 'spinjs-rails'
 gem 'ancestry', '~> 2.0'
 
 gem 'rails-backbone', github: 'codebrew/backbone-rails'
+
+# XLS support
+gem 'roo'
+
+# Converting HTML to markdown for CSV export
+gem 'reverse_markdown'
 
 group :development do
   gem 'rails-erd'                     # generat with:  DIAGRAM=true rake db:migrate

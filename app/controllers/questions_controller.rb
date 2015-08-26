@@ -7,9 +7,6 @@ class QuestionsController < ApplicationController
   load_and_authorize_resource
 
   def index
-    @questions = @questions.with_assoc_counts.by_code.paginate(:page => params[:page], :per_page => 25)
-    load_importable_objs
-
     # do search if applicable
     if params[:search].present?
       begin
@@ -19,6 +16,11 @@ class QuestionsController < ApplicationController
         @search_error = true
       end
     end
+
+    @tags = Tag.mission_tags(@current_mission)
+
+    @questions = @questions.includes(:tags).with_assoc_counts.by_code.paginate(:page => params[:page], :per_page => 25)
+    load_importable_objs
   end
 
   def show
@@ -34,10 +36,21 @@ class QuestionsController < ApplicationController
   end
 
   def create
+    @question.is_standard = true if current_mode == 'admin'
+
+    # Convert tag string from TokenInput to array
+    @question.tag_ids = (params[:question][:tag_ids] || '').split(',')
+
+    # Convert tags_attributes hidden inputs to create new tags (why doesn't this happen automatically here?)
+    @question.tags_attributes = params[:question][:tags_attributes] || []
+
     create_or_update
   end
 
   def update
+    # Convert tag string from TokenInput to array
+    params[:question][:tag_ids] = params[:question][:tag_ids].split(',')
+
     # assign attribs and validate now so that normalization runs before authorizing and saving
     @question.assign_attributes(params[:question])
     @question.valid?
@@ -57,7 +70,7 @@ class QuestionsController < ApplicationController
   private
     # creates/updates the question
     def create_or_update
-      if @question.save_and_rereplicate
+      if @question.save
         set_success_and_redirect(@question)
       else
         flash.now[:error] = I18n.t('activerecord.errors.models.question.general')
@@ -71,4 +84,5 @@ class QuestionsController < ApplicationController
       setup_question_form_support_objs
       render(:form)
     end
+
 end

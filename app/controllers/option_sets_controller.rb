@@ -21,6 +21,9 @@ class OptionSetsController < ApplicationController
     # now we apply .all so that any .empty? or .count calls in the template don't cause more queries
     @option_sets = @option_sets.all
 
+    # Avoid N+1 for option names.
+    OptionSet.preload_top_level_options(@option_sets)
+
     load_importable_objs
   end
 
@@ -44,6 +47,7 @@ class OptionSetsController < ApplicationController
 
   # always via AJAX
   def create
+    @option_set.is_standard = true if current_mode == 'admin'
     OptionSet.transaction do
       create_or_update
     end
@@ -114,7 +118,7 @@ class OptionSetsController < ApplicationController
   # creates/updates the option set
   def create_or_update
     begin
-      @option_set.save_and_rereplicate!
+      @option_set.save!
 
       # set the flash, which will be shown when the next request is issued as expected
       # (not needed in modal mode)

@@ -27,10 +27,10 @@ class Sms::Adapters::Adapter
   # Raises an error if no recipients or message empty. Adds adapter name.
   def prepare_message_for_delivery(message)
     # apply the adapter name to the message
-    message.update_attributes(:adapter_name => service_name)
+    message.adapter_name = service_name
 
     # error if no recipients or message empty
-    raise Sms::Error.new("message has no recipients") if message.to.blank?
+    raise Sms::Error.new("message has no recipients") if message.recipient_numbers.all?(&:blank?)
     raise Sms::Error.new("message body is empty") if message.body.blank?
 
     # save the message now, which sets the sent_at
@@ -76,6 +76,9 @@ class Sms::Adapters::Adapter
 
       # create request
       request = Net::HTTP::Get.new(uri.request_uri)
+
+      # Don't want to actually send HTTP request in test mode.
+      return "" if Rails.env.test?
 
       # send request and catch errors
       begin

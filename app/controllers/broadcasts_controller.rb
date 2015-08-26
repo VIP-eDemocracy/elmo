@@ -32,10 +32,11 @@ class BroadcastsController < ApplicationController
       redirect_to(users_path)
     else
       begin
-        @balance = Smser.check_balance
+        @balance = Sms::Broadcaster.check_balance
       rescue NotImplementedError
         # don't need to do anything here
       rescue
+        @balance = :failed
         logger.error("SMS balance request error: #{$!}")
       end
 
@@ -52,6 +53,7 @@ class BroadcastsController < ApplicationController
 
   def create
     if @broadcast.save
+      @broadcast.deliver
       if @broadcast.send_errors
         flash[:error] = t("broadcast.send_error")
       else
